@@ -47,15 +47,15 @@ options(scipen=7) # not scientific notation
 # Load data
 
 library(readxl)
-data1 <- read_excel("NBP.xls", sheet = 1, na = "NA") %>% 
+data_nox <- read_excel("NBP.xls", sheet = 1, na = "NA") %>% 
   clean_names() 
 
 ```
 
-The data included in the file NBP.xls, which is available on Gauchospace, are: fips (fips code
+The data included in the file NBP.xls are: fips (fips code
 identifying each county), NBP (indicator =1 if the county was regulated under the NOx Budget
 Program), PctBlack (fraction of the county population that is African American), and
-Dnox_masstons (change in annual NOx emissions from all power plants in a county between
+Dnox_masstons (change in total NOx emissions from all power plants in a county between
 2000 and 2008 (in tons)). Note that the NBP market was in effect in 212 of the 485 counties in
 the sample from 2003 to 2008, so the 2008-2000 change give us a sense of the program’s
 effect on emissions. If emissions of NOx from power plants declined in a county, then
@@ -66,10 +66,11 @@ Dnox_masstons should be negative.
 ### (a) Make a histogram depicting the distribution of Dnox_masstons.
 
 ```{r}
-ggplot(data = data1, aes(x = dnox_masstons)) +
+ggplot(data = data_nox, aes(x = dnox_masstons)) +
   geom_histogram() +
   theme_cowplot(14) +
-  labs(x = "Low Birth Weight Percentage", 
+  labs(x = "Change in total NOx emissions from all power plants in a county between
+2000 and 2008 (in tons)", 
        y = "Count")
 ```
 
@@ -77,21 +78,48 @@ ggplot(data = data1, aes(x = dnox_masstons)) +
 otherwise (in the rest of the assignment, I refer to this variable as ‘D’). What is the average of
 PctBlack for counties above the median, i.e. counties for which D=1?
 
+```{r}
+median_pctblack <- median(data_nox$pct_black)
+
+data_nox <- data_nox %>% 
+  mutate(D = if_else(pct_black > median_pctblack, 1, 0)) #creating a new column that will have a 1 if the median is larger than the number and a zero if not
+
+average <- data_nox %>% 
+  select(pct_black, D) %>% 
+  filter(D == "1")
+```
 
 ### (c) Estimate a regression of Dnox_masstons on NBP. Interpret the estimated intercept and the
 coefficient on NBP.
 
+```{r}
+lm(data = data_nox, dnox_masstons ~ nbp)
+```
+Averge change from 200 to 2-008 in all nox emissions within counties that are unregulated (when nbp is zero is teh intercept and beta one is turned off) And the coefficient is the teh sam ebut regulated
 
 ### (d) Create an interaction between the variables NBP and D. Estimate a regression of
 Dnox_masstons on NBP, D, and this interaction. Interpret each estimated regression coefficient,
 including the intercept.
 
+```{r}
+lm_robust(data = data_nox, dnox_masstons ~ nbp + D + nbp:D)
+```
+intercept is unregulated with a percent black pop below median (sample mean) change in total NOx emissions from all power plants in a county between 2000 and 2008 (in tons)
+
+nbp is difference in teh rate of average total chance from the intercept for counties regulated with low percentage of black population is zero at intercept 
+
+D is unregulated population above the median 
+
+the intersection between the implantation of the policy and the percent black above sample mean. when you add this to b1 and B2 and B0. difference in rate of change between are regulated and have a population of African Americans above the median. 
 
 ### (e) What is the predicted Dnox_masstons in a county that was not regulated under NBP and
 where PctBlack is above the sample median (i.e., where D=1)? Report the 95% confidence
 interval for this prediction. Make sure to use “heteroskedasticity-robust” standard errors.
 
 
+```{r}
+
+```
 
 
 
