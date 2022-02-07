@@ -20,7 +20,7 @@ knitr::opts_chunk$set(fig.width = 4, fig.height = 3,
 
 # load packages
 packages=c("stargazer", "here", "tidyr", "dplyr","stringr", "janitor", 
-           "cowplot", "ggplot2", "tinytex", "datasets", "tibble", "kableExtra", "estimatr", "car", "broom")
+           "cowplot", "ggplot2", "tinytex", "datasets", "tibble", "kableExtra", "estimatr", "broom")
 
 for (i in packages) {
   if (require(i,character.only=TRUE)==FALSE) {
@@ -32,7 +32,7 @@ for (i in packages) {
 }
 
 #devtools::install_github('rstudio/rmarkdown')
-options(scipen=7) # not scientific notation
+options(scipen=4) # not scientific notation
 
 
 ```
@@ -67,11 +67,12 @@ Dnox_masstons should be negative.
 
 ```{r}
 ggplot(data = data_nox, aes(x = dnox_masstons)) +
-  geom_histogram() +
+  geom_histogram(aes(fill = as.factor(nbp), position = 'dodge')) +
   theme_cowplot(14) +
-  labs(x = "Change in total NOx emissions from all power plants in a county between
-2000 and 2008 (in tons)", 
-       y = "Count")
+  labs(x = "Change in total NOx emissions between
+2000 and 2008  (tons)", 
+       y = "Count", 
+        fill = "NBP")
 ```
 
 ### (b) Create an indicator =1 if the county has PctBlack above the sample median, and =0
@@ -86,31 +87,49 @@ data_nox <- data_nox %>%
 
 average <- data_nox %>% 
   select(pct_black, D) %>% 
-  filter(D == "1")
+  filter(D == 1)
+
+mean <- mean(average$pct_black)
 ```
+The average of PctBlack for counties above the median is `r mean`
 
 ### (c) Estimate a regression of Dnox_masstons on NBP. Interpret the estimated intercept and the
 coefficient on NBP.
 
 ```{r}
-lm(data = data_nox, dnox_masstons ~ nbp)
+nbp_model <- lm(data = data_nox, dnox_masstons ~ nbp)
+
+table1 <- broom::tidy(nbp_model) %>% 
+  knitr::kable() %>% 
+  kableExtra::kable_styling(full_width = FALSE, 
+                latex_options = "HOLD_position")
+table1
 ```
-Averge change from 200 to 2-008 in all nox emissions within counties that are unregulated (when nbp is zero is teh intercept and beta one is turned off) And the coefficient is the teh sam ebut regulated
+The intercept here is the average rate of change from 2000 to 2008 in all nox emissions within counties that are unregulated, so the predicted change in for those unregulated counties is -3.62 tons (when nbp is zero). The coefficient predicts that the change in annual NOx emissions was on average -3.92 ton higher for counties that were regulated, when compared to those that were unregulated. We know that a negative dnox_masstons gives us a decrease in NOx, so from this we can say that the NOx Budget Program was working and annual Nox emmisions were decreaing by 3.92 tons when the county is regulated. 
 
 ### (d) Create an interaction between the variables NBP and D. Estimate a regression of
 Dnox_masstons on NBP, D, and this interaction. Interpret each estimated regression coefficient,
 including the intercept.
 
 ```{r}
-lm_robust(data = data_nox, dnox_masstons ~ nbp + D + nbp:D)
+nbp_d_model <- lm_robust(data = data_nox, dnox_masstons ~ nbp + D + nbp:D)
+
+
+table2 <- broom::tidy(nbp_d_model) %>% 
+  knitr::kable() %>% 
+  kableExtra::kable_styling(full_width = FALSE, 
+                latex_options = "HOLD_position")
+
+table2
 ```
-intercept is unregulated with a percent black pop below median (sample mean) change in total NOx emissions from all power plants in a county between 2000 and 2008 (in tons)
+The intercept here shows the average rate of change of all nox emissions within a given county between 2000 to 2008 for a county that is unregulated and with a percentage of the African American population below the sample median is -2.42 tons. Or in terms of the variables, when nbp is zero and the pct_black is below 19.31 and D=0, the change in NOx emmissions in the counties between 2000-2008 will be -2.42 tons
 
-nbp is difference in teh rate of average total chance from the intercept for counties regulated with low percentage of black population is zero at intercept 
 
-D is unregulated population above the median 
+The estimate for nbp is saying that when everything is held constant, counties that were regulated under the Nox budget plan (nbp = 1) will have an average change from all power plants in the counties between 2000- 2008 of -7.14 tons compared to the intercept (Nbp= 0, pct_black = below 19.31 and D=0). 
 
-the intersection between the implantation of the policy and the percent black above sample mean. when you add this to b1 and B2 and B0. difference in rate of change between are regulated and have a population of African Americans above the median. 
+The estimate for D is saying that on average counties that have an average of African American populations higher that the median (19.31) will have a change in NOx emissions from all power plants in the counties between 2000 to 2008 of -2.59 compared to the intercept (Nbp= 0, pct_black = below 19.31 and D=0).
+
+The estimate of nbp:D is the intersection between the implantation of the policy and the percent black above sample mean. This is saying that the NOx budget program raised the NOx emissions from all power plants in the counties between 2000- 2008 by 6.37 tons in counties that have an average percent of the African American population above 19.31% compared to counties that have an average percent of the African American population below 19.31%.
 
 ### (e) What is the predicted Dnox_masstons in a county that was not regulated under NBP and
 where PctBlack is above the sample median (i.e., where D=1)? Report the 95% confidence
@@ -118,10 +137,15 @@ interval for this prediction. Make sure to use “heteroskedasticity-robust” s
 
 
 ```{r}
+model_e <- lm_robust(data = data_nox, dnox_masstons ~nbp + D)
 
+predict_data <- data.frame(nbp = c(0), D = c(1))
+
+predict(model_e, newdata = predict_data, se.fit = T, interval = 'confidence')
 ```
 
-
+The predicted Dnox_masstons in a county that was not regulated under NBP and
+where PctBlack is above the sample median is -3.52 tons, with a 95% confidence interval, using heterskedasticity robust standard errors, of -4.82 and -2.21 tons. 
 
 
 
